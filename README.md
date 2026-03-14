@@ -83,3 +83,33 @@ El desarrollo se realizó utilizando C# y .NET, implementando las clases que rep
 ✔ Llevar control básico de donaciones al refugio
 
 El sistema fue diseñado siguiendo los principios de la Programación Orientada a Objetos, permitiendo que cada entidad del sistema sea representada mediante clases con atributos y métodos que reflejan su comportamiento dentro del dominio del problema.
+
+---
+
+## 🤝 Equipo de Desarrollo
+
+Somos un equipo comprometido con el aprendizaje y la aplicación de los principios de la Programación Orientada a Objetos, utilizando el desarrollo de software como herramienta para proponer soluciones a problemas reales mediante un enfoque estructurado y profesional.
+
+### 👩‍💻 Sara Palacio Zapata
+
+📌 Programa: Tecnología en Desarrollo de Software  
+📧 Correo: sara.palacio522@pascualbravo.edu.co
+
+---
+
+### 👨‍💻 Juan David Restrepo Bedoya
+
+📌 Programa: Tecnología en Desarrollo de Software  
+📧 Correo: cjuan.restrepo051@pascualbravo.edu.co
+
+---
+
+### 👨‍💻 Julián Velásquez Salas
+
+📌 Programa: Tecnología en Desarrollo de Software  
+📧 Correo: julian.velasquez380@pascualbravo.edu.co
+
+---
+
+⭐ Proyecto académico – Programación orientada a objetos
+Institución Universitaria Pascual Bravo
