@@ -1,51 +1,59 @@
 ﻿using System;
+using System.Collections.Generic;
 
 class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
-        Console.WriteLine("=== Sistema PetCare Manager ===");
+        List<Animal> animales = new List<Animal>();
+        bool continuar = true;
 
-        // Crear un animal
-        Animal animal1 = new Animal(1, "Luna", "Perro");
+        while (continuar)
+        {
+            Console.WriteLine("\n=== SISTEMA DE REFUGIO ===");
+            Console.WriteLine("1. Registrar animal");
+            Console.WriteLine("2. Mostrar animales");
+            Console.WriteLine("3. Salir");
 
-        Console.WriteLine("\nAnimal registrado:");
-        Console.WriteLine(animal1.Nombre + " - " + animal1.Especie);
+            Console.Write("Seleccione una opción: ");
+            string opcion = Console.ReadLine();
 
-        // Cambiar estado del animal
-        animal1.ActualizarEstado("Disponible");
+            switch (opcion)
+            {
+                case "1":
 
-        Console.WriteLine("Estado actual: " + animal1.Estado);
+                    Console.Write("Nombre del animal: ");
+                    string nombre = Console.ReadLine();
 
-        // Crear adoptante
-        Adoptante adoptante1 = new Adoptante(1, "Carlos Pérez", "3001234567");
+                    Console.Write("Especie: ");
+                    string especie = Console.ReadLine();
 
-        Console.WriteLine("\nAdoptante registrado:");
-        Console.WriteLine(adoptante1.Nombre);
+                    Animal nuevoAnimal = new Animal(animales.Count + 1, nombre, especie);
+                    animales.Add(nuevoAnimal);
 
-        // Crear solicitud de adopción
-        Adopcion adopcion1 = new Adopcion(1, animal1, adoptante1);
+                    Console.WriteLine("Animal registrado correctamente.");
+                    break;
 
-        Console.WriteLine("\nSolicitud de adopción creada.");
-        Console.WriteLine("Estado de adopción: " + adopcion1.Estado);
+                case "2":
 
-        // Aprobar adopción
-        adopcion1.Aprobar();
+                    Console.WriteLine("\nAnimales registrados:");
 
-        Console.WriteLine("\nAdopción aprobada.");
-        Console.WriteLine("Nuevo estado del animal: " + animal1.Estado);
+                    foreach (Animal animal in animales)
+                    {
+                        Console.WriteLine($"ID: {animal.Id} - Nombre: {animal.Nombre} - Especie: {animal.Especie}");
+                    }
 
-        // Registrar historial médico
-        RegistroMedico registro1 = new RegistroMedico(
-            1,
-            animal1,
-            "Desparasitación",
-            "Medicamento antiparasitario"
-        );
+                    break;
 
-        Console.WriteLine("\nRegistro médico creado:");
-        Console.WriteLine("Diagnóstico: " + registro1.Diagnostico);
+                case "3":
+                    continuar = false;
+                    break;
 
-        Console.WriteLine("\n=== Fin de la prueba ===");
+                default:
+                    Console.WriteLine("Opción no válida.");
+                    break;
+            }
+        }
     }
 }
+
