@@ -1,17 +1,14 @@
 ﻿using System;
 
 /// <summary>
-/// Representa un animal registrado en el refugio.
-/// Contiene información básica y permite actualizar su estado dentro del sistema.
+/// Clase abstracta que representa un animal en el refugio.
+/// No se puede instanciar directamente — es la base para Perro, Gato, etc.
 /// </summary>
-public class Animal
+public abstract class Animal
 {
-    // Campos privados
     private int id;
     private string nombre;
-    private string especie;
     private string estado;
-    private DateTime fechaIngreso;
 
     /// <summary>
     /// Identificador único del animal.
@@ -28,15 +25,14 @@ public class Animal
         {
             if (string.IsNullOrWhiteSpace(value))
                 throw new ArgumentException("El nombre no puede estar vacío.");
-
             nombre = value;
         }
     }
 
     /// <summary>
-    /// Especie del animal (perro, gato, etc.).
+    /// Especie del animal (definida por cada clase hija).
     /// </summary>
-    public string Especie { get; set; }
+    public string Especie { get; protected set; }
 
     /// <summary>
     /// Estado actual del animal dentro del refugio.
@@ -50,10 +46,10 @@ public class Animal
     /// <summary>
     /// Fecha de ingreso del animal al refugio.
     /// </summary>
-    public DateTime FechaIngreso { get { return fechaIngreso; } }
+    public DateTime FechaIngreso { get; private set; }
 
     /// <summary>
-    /// Constructor para inicializar un animal.
+    /// Constructor de la clase abstracta Animal.
     /// </summary>
     public Animal(int id, string nombre, string especie)
     {
@@ -61,17 +57,16 @@ public class Animal
         Nombre = nombre;
         Especie = especie;
         Estado = "En observación";
-        fechaIngreso = DateTime.Now;
+        FechaIngreso = DateTime.Now;
     }
 
     /// <summary>
-    /// Permite actualizar el estado del animal.
+    /// Actualiza el estado del animal en el refugio.
     /// </summary>
     public void ActualizarEstado(string nuevoEstado)
     {
         if (string.IsNullOrWhiteSpace(nuevoEstado))
             throw new ArgumentException("El estado no puede estar vacío.");
-
         Estado = nuevoEstado;
     }
 
@@ -82,4 +77,10 @@ public class Animal
     {
         return Estado == "Disponible";
     }
+
+    /// <summary>
+    /// Método abstracto: cada especie describe sus cuidados específicos.
+    /// ESTO ES POLIMORFISMO — mismo método, comportamiento diferente según la especie.
+    /// </summary>
+    public abstract void DescribirCuidados();
 }
