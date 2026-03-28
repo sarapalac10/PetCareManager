@@ -9,8 +9,8 @@ public class Perro : Animal
     /// <summary>
     /// Constructor del Perro. La especie se asigna automáticamente.
     /// </summary>
-    public Perro(int id, string nombre)
-        : base(id, nombre, "Perro")
+    public Perro(int id, string nombre, string sexo, int edad)
+        : base(id, nombre, "Perro", sexo, edad)
     {
     }
 
@@ -19,7 +19,7 @@ public class Perro : Animal
     /// </summary>
     public override void DescribirCuidados()
     {
-        Console.WriteLine($"🐶 {Nombre} necesita:");
+        Console.WriteLine($"{Nombre} necesita:");
         Console.WriteLine("   - Paseos diarios (mínimo 2 veces al día)");
         Console.WriteLine("   - Socialización con personas y otros perros");
         Console.WriteLine("   - Vacunación anual y desparasitación");

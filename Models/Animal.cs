@@ -35,6 +35,16 @@ public abstract class Animal
     public string Especie { get; protected set; }
 
     /// <summary>
+    /// Sexo del animal: Macho o Hembra.
+    /// </summary>
+    public string Sexo { get; private set; }
+
+    /// <summary>
+    /// Edad del animal en años.
+    /// </summary>
+    public int Edad { get; private set; }
+
+    /// <summary>
     /// Estado actual del animal dentro del refugio.
     /// </summary>
     public string Estado
@@ -51,11 +61,20 @@ public abstract class Animal
     /// <summary>
     /// Constructor de la clase abstracta Animal.
     /// </summary>
-    public Animal(int id, string nombre, string especie)
+    public Animal(int id, string nombre, string especie, string sexo, int edad)
     {
         this.id = id;
         Nombre = nombre;
         Especie = especie;
+
+        if (sexo != "Macho" && sexo != "Hembra")
+            throw new ArgumentException("El sexo debe ser Macho o Hembra.");
+        Sexo = sexo;
+
+        if (edad < 0)
+            throw new ArgumentException("La edad no puede ser negativa.");
+        Edad = edad;
+
         Estado = "En observación";
         FechaIngreso = DateTime.Now;
     }

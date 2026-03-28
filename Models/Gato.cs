@@ -9,8 +9,8 @@ public class Gato : Animal
     /// <summary>
     /// Constructor del Gato. La especie se asigna automáticamente.
     /// </summary>
-    public Gato(int id, string nombre)
-        : base(id, nombre, "Gato")
+    public Gato(int id, string nombre, string sexo, int edad)
+        : base(id, nombre, "Gato", sexo, edad)
     {
     }
 
@@ -19,7 +19,7 @@ public class Gato : Animal
     /// </summary>
     public override void DescribirCuidados()
     {
-        Console.WriteLine($"🐱 {Nombre} necesita:");
+        Console.WriteLine($"{Nombre} necesita:");
         Console.WriteLine("   - Arenero limpio y espacio para explorar");
         Console.WriteLine("   - Enriquecimiento ambiental (juguetes, rascadores)");
         Console.WriteLine("   - Revisión veterinaria periódica");

@@ -25,11 +25,12 @@ class Program
             Console.WriteLine("2. Registrar gato");
             Console.WriteLine("3. Ver animales");
             Console.WriteLine("4. Ver cuidados por especie");
-            Console.WriteLine("5. Registrar adoptante");
-            Console.WriteLine("6. Ver adoptantes");
-            Console.WriteLine("7. Crear adopción");
-            Console.WriteLine("8. Registrar historial médico");
-            Console.WriteLine("9. Ver registros médicos");
+            Console.WriteLine("5. Actualizar estado de un animal");
+            Console.WriteLine("6. Registrar adoptante");
+            Console.WriteLine("7. Ver adoptantes");
+            Console.WriteLine("8. Crear adopción");
+            Console.WriteLine("9. Registrar historial médico");
+            Console.WriteLine("10. Ver registros médicos");
             Console.WriteLine("0. Salir");
             Console.Write("\nSeleccione una opción: ");
 
@@ -50,18 +51,21 @@ class Program
                     DescribirCuidados();
                     break;
                 case "5":
-                    RegistrarAdoptante();
+                    ActualizarEstadoAnimal();
                     break;
                 case "6":
-                    VerAdoptantes();
+                    RegistrarAdoptante();
                     break;
                 case "7":
-                    CrearAdopcion();
+                    VerAdoptantes();
                     break;
                 case "8":
-                    RegistrarHistorialMedico();
+                    CrearAdopcion();
                     break;
                 case "9":
+                    RegistrarHistorialMedico();
+                    break;
+                case "10":
                     VerRegistrosMedicos();
                     break;
                 case "0":
@@ -79,7 +83,16 @@ class Program
     {
         Console.Write("Nombre del perro: ");
         string nombre = Console.ReadLine();
-        animales.Add(new Perro(animales.Count + 1, nombre));
+
+        Console.WriteLine("Sexo: 1. Macho  2. Hembra");
+        Console.Write("Seleccione: ");
+        string opcionSexo = Console.ReadLine();
+        string sexo = opcionSexo == "1" ? "Macho" : "Hembra";
+
+        Console.Write("Edad en años: ");
+        int edad = int.Parse(Console.ReadLine());
+
+        animales.Add(new Perro(animales.Count + 1, nombre, sexo, edad));
         Console.WriteLine("✔ Perro registrado.");
     }
 
@@ -87,7 +100,16 @@ class Program
     {
         Console.Write("Nombre del gato: ");
         string nombre = Console.ReadLine();
-        animales.Add(new Gato(animales.Count + 1, nombre));
+
+        Console.WriteLine("Sexo: 1. Macho  2. Hembra");
+        Console.Write("Seleccione: ");
+        string opcionSexo = Console.ReadLine();
+        string sexo = opcionSexo == "1" ? "Macho" : "Hembra";
+
+        Console.Write("Edad en años: ");
+        int edad = int.Parse(Console.ReadLine());
+
+        animales.Add(new Gato(animales.Count + 1, nombre, sexo, edad));
         Console.WriteLine("✔ Gato registrado.");
     }
 
@@ -96,13 +118,51 @@ class Program
         if (animales.Count == 0) { Console.WriteLine("No hay animales registrados."); return; }
         Console.WriteLine("\n--- Animales en el refugio ---");
         foreach (var a in animales)
-            Console.WriteLine($"[{a.Id}] {a.Nombre} ({a.Especie}) — Estado: {a.Estado}");
+            Console.WriteLine($"[{a.Id}] {a.Nombre} | {a.Especie} | {a.Sexo} | {a.Edad} años | Estado: {a.Estado}");
+    }
+
+    static void ActualizarEstadoAnimal()
+    {
+        if (animales.Count == 0) { Console.WriteLine("No hay animales registrados."); return; }
+
+        VerAnimales();
+        Console.Write("Ingrese el ID del animal: ");
+        int id = int.Parse(Console.ReadLine());
+
+        Animal animal = animales.Find(a => a.Id == id);
+        if (animal == null) { Console.WriteLine("ID inválido."); return; }
+
+        Console.WriteLine("\nSeleccione el nuevo estado:");
+        Console.WriteLine("1. En observación");
+        Console.WriteLine("2. En tratamiento");
+        Console.WriteLine("3. Disponible");
+        Console.WriteLine("4. Adoptado");
+        Console.Write("Seleccione: ");
+        string opcion = Console.ReadLine();
+
+        string nuevoEstado = opcion switch
+        {
+            "1" => "En observación",
+            "2" => "En tratamiento",
+            "3" => "Disponible",
+            "4" => "Adoptado",
+            _ => null
+        };
+
+        if (nuevoEstado == null)
+        {
+            Console.WriteLine("Opción inválida.");
+            return;
+        }
+
+        animal.ActualizarEstado(nuevoEstado);
+        Console.WriteLine($"✔ Estado de {animal.Nombre} actualizado a: {nuevoEstado}");
     }
 
     static void DescribirCuidados()
     {
         if (animales.Count == 0) { Console.WriteLine("No hay animales registrados."); return; }
-        Console.WriteLine("\n--- 🏥 Cuidados por especie ---");
+        Console.WriteLine("\n--- Cuidados por especie ---");
         foreach (var a in animales)
             a.DescribirCuidados(); // ← MISMO MÉTODO, DIFERENTE COMPORTAMIENTO
     }
