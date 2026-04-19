@@ -9,7 +9,7 @@ public class RegistroMedico
     public DateTime Fecha { get; private set; }
     public Animal Animal { get; private set; }
 
-    private string diagnostico;
+    private string diagnostico = null!;
     /// <summary>
     /// Diagnóstico registrado en la consulta.
     /// </summary>
@@ -24,7 +24,7 @@ public class RegistroMedico
         }
     }
 
-    private string tratamiento;
+    private string tratamiento = null!;
     /// <summary>
     /// Tratamiento indicado para el animal.
     /// </summary>

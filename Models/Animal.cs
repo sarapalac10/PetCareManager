@@ -7,8 +7,7 @@
 public abstract class Animal
 {
     private int id;
-    private string nombre;
-    private string estado;
+    private string nombre = null!;
 
     /// <summary>
     /// Identificador único del animal.
@@ -47,11 +46,7 @@ public abstract class Animal
     /// <summary>
     /// Estado actual del animal dentro del refugio.
     /// </summary>
-    public string Estado
-    {
-        get { return estado; }
-        private set { estado = value; }
-    }
+    public EstadoAnimal Estado { get; private set; }
 
     /// <summary>
     /// Fecha de ingreso del animal al refugio.
@@ -75,17 +70,15 @@ public abstract class Animal
             throw new ArgumentException("La edad no puede ser negativa.");
         Edad = edad;
 
-        Estado = "En observación";
+        Estado = EstadoAnimal.EnObservacion;
         FechaIngreso = DateTime.Now;
     }
 
     /// <summary>
     /// Actualiza el estado del animal en el refugio.
     /// </summary>
-    public void ActualizarEstado(string nuevoEstado)
+    public void ActualizarEstado(EstadoAnimal nuevoEstado)
     {
-        if (string.IsNullOrWhiteSpace(nuevoEstado))
-            throw new ArgumentException("El estado no puede estar vacío.");
         Estado = nuevoEstado;
     }
 
@@ -94,7 +87,7 @@ public abstract class Animal
     /// </summary>
     public bool EsAdoptable()
     {
-        return Estado == "Disponible";
+        return Estado == EstadoAnimal.Disponible;
     }
 
     /// <summary>

@@ -7,8 +7,8 @@
 public class Persona
 {
     private int id;
-    private string nombre;
-    private string telefono;
+    private string nombre = null!;
+    private string telefono = null!;
 
     /// <summary>
     /// Identificador único de la persona.

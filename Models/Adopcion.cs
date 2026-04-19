@@ -30,7 +30,7 @@ public class Adopcion
     public void Aprobar()
     {
         Estado = EstadoAdopcion.APROBADA;
-        Animal.ActualizarEstado("Adoptado");
+        Animal.ActualizarEstado(EstadoAnimal.Adoptado);
         Console.WriteLine($"✔ Adopción aprobada: {Animal.Nombre} → {Adoptante.Nombre}");
     }
 

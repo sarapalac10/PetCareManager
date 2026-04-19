@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Linq;
 
 /// <summary>
 /// Punto de entrada del sistema PetCare Manager.
@@ -11,6 +11,7 @@ class Program
     static List<Animal> animales = new List<Animal>();
     static List<Adoptante> adoptantes = new List<Adoptante>();
     static List<RegistroMedico> registros = new List<RegistroMedico>();
+    static List<Adopcion> adopciones = new List<Adopcion>();
 
     static void Main()
     {
@@ -34,7 +35,7 @@ class Program
             Console.WriteLine("0. Salir");
             Console.Write("\nSeleccione una opción: ");
 
-            string opcion = Console.ReadLine();
+            string? opcion = Console.ReadLine();
 
             switch (opcion)
             {
@@ -79,18 +80,59 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Lee una línea de consola y la devuelve como texto no vacío,
+    /// o null si el usuario dejó la entrada vacía.
+    /// </summary>
+    static string? LeerTexto(string mensaje)
+    {
+        Console.Write(mensaje);
+        string? valor = Console.ReadLine();
+        return string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+    }
+
+    /// <summary>
+    /// Lee un entero no negativo desde consola, validando el formato.
+    /// Devuelve true si la lectura fue exitosa.
+    /// </summary>
+    static bool LeerEntero(string mensaje, out int valor)
+    {
+        Console.Write(mensaje);
+        string? entrada = Console.ReadLine();
+        if (!int.TryParse(entrada, out valor) || valor < 0)
+        {
+            Console.WriteLine("✖ Valor numérico inválido.");
+            valor = 0;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Solicita el sexo del animal y lo valida.
+    /// </summary>
+    static bool LeerSexo(out string sexo)
+    {
+        Console.WriteLine("Sexo: 1. Macho  2. Hembra");
+        string? opcion = LeerTexto("Seleccione: ");
+        switch (opcion)
+        {
+            case "1": sexo = "Macho"; return true;
+            case "2": sexo = "Hembra"; return true;
+            default:
+                Console.WriteLine("✖ Opción de sexo inválida.");
+                sexo = "";
+                return false;
+        }
+    }
+
     static void RegistrarPerro()
     {
-        Console.Write("Nombre del perro: ");
-        string nombre = Console.ReadLine();
+        string? nombre = LeerTexto("Nombre del perro: ");
+        if (nombre == null) { Console.WriteLine("✖ El nombre no puede estar vacío."); return; }
 
-        Console.WriteLine("Sexo: 1. Macho  2. Hembra");
-        Console.Write("Seleccione: ");
-        string opcionSexo = Console.ReadLine();
-        string sexo = opcionSexo == "1" ? "Macho" : "Hembra";
-
-        Console.Write("Edad en años: ");
-        int edad = int.Parse(Console.ReadLine());
+        if (!LeerSexo(out string sexo)) return;
+        if (!LeerEntero("Edad en años: ", out int edad)) return;
 
         animales.Add(new Perro(animales.Count + 1, nombre, sexo, edad));
         Console.WriteLine("✔ Perro registrado.");
@@ -98,16 +140,11 @@ class Program
 
     static void RegistrarGato()
     {
-        Console.Write("Nombre del gato: ");
-        string nombre = Console.ReadLine();
+        string? nombre = LeerTexto("Nombre del gato: ");
+        if (nombre == null) { Console.WriteLine("✖ El nombre no puede estar vacío."); return; }
 
-        Console.WriteLine("Sexo: 1. Macho  2. Hembra");
-        Console.Write("Seleccione: ");
-        string opcionSexo = Console.ReadLine();
-        string sexo = opcionSexo == "1" ? "Macho" : "Hembra";
-
-        Console.Write("Edad en años: ");
-        int edad = int.Parse(Console.ReadLine());
+        if (!LeerSexo(out string sexo)) return;
+        if (!LeerEntero("Edad en años: ", out int edad)) return;
 
         animales.Add(new Gato(animales.Count + 1, nombre, sexo, edad));
         Console.WriteLine("✔ Gato registrado.");
@@ -126,55 +163,67 @@ class Program
         if (animales.Count == 0) { Console.WriteLine("No hay animales registrados."); return; }
 
         VerAnimales();
-        Console.Write("Ingrese el ID del animal: ");
-        int id = int.Parse(Console.ReadLine());
+        if (!LeerEntero("Ingrese el ID del animal: ", out int id)) return;
 
-        Animal animal = animales.Find(a => a.Id == id);
-        if (animal == null) { Console.WriteLine("ID inválido."); return; }
+        Animal? animal = animales.Find(a => a.Id == id);
+        if (animal == null) { Console.WriteLine("✖ ID inválido."); return; }
 
         Console.WriteLine("\nSeleccione el nuevo estado:");
         Console.WriteLine("1. En observación");
         Console.WriteLine("2. En tratamiento");
         Console.WriteLine("3. Disponible");
         Console.WriteLine("4. Adoptado");
-        Console.Write("Seleccione: ");
-        string opcion = Console.ReadLine();
+        string? opcion = LeerTexto("Seleccione: ");
 
-        string nuevoEstado = opcion switch
+        EstadoAnimal? nuevoEstado = opcion switch
         {
-            "1" => "En observación",
-            "2" => "En tratamiento",
-            "3" => "Disponible",
-            "4" => "Adoptado",
+            "1" => EstadoAnimal.EnObservacion,
+            "2" => EstadoAnimal.EnTratamiento,
+            "3" => EstadoAnimal.Disponible,
+            "4" => EstadoAnimal.Adoptado,
             _ => null
         };
 
         if (nuevoEstado == null)
         {
-            Console.WriteLine("Opción inválida.");
+            Console.WriteLine("✖ Opción inválida.");
             return;
         }
 
-        animal.ActualizarEstado(nuevoEstado);
+        animal.ActualizarEstado(nuevoEstado.Value);
         Console.WriteLine($"✔ Estado de {animal.Nombre} actualizado a: {nuevoEstado}");
     }
 
+    /// <summary>
+    /// Muestra los cuidados agrupados por especie, usando un representante
+    /// de cada una para ilustrar el polimorfismo de DescribirCuidados.
+    /// </summary>
     static void DescribirCuidados()
     {
         if (animales.Count == 0) { Console.WriteLine("No hay animales registrados."); return; }
+
         Console.WriteLine("\n--- Cuidados por especie ---");
-        foreach (var a in animales)
-            a.DescribirCuidados(); // ← MISMO MÉTODO, DIFERENTE COMPORTAMIENTO
+        var porEspecie = animales
+            .GroupBy(a => a.Especie)
+            .Select(g => g.First());
+
+        foreach (var representante in porEspecie)
+        {
+            Console.WriteLine($"\nEspecie: {representante.Especie}");
+            representante.DescribirCuidados();
+        }
     }
 
     static void RegistrarAdoptante()
     {
-        Console.Write("Nombre: ");
-        string nombre = Console.ReadLine();
-        Console.Write("Teléfono: ");
-        string tel = Console.ReadLine();
-        Console.Write("Dirección: ");
-        string dir = Console.ReadLine();
+        string? nombre = LeerTexto("Nombre: ");
+        if (nombre == null) { Console.WriteLine("✖ El nombre no puede estar vacío."); return; }
+
+        string? tel = LeerTexto("Teléfono: ");
+        if (tel == null) { Console.WriteLine("✖ El teléfono no puede estar vacío."); return; }
+
+        string? dir = LeerTexto("Dirección: ");
+        if (dir == null) { Console.WriteLine("✖ La dirección no puede estar vacía."); return; }
 
         adoptantes.Add(new Adoptante(adoptantes.Count + 1, nombre, tel, dir));
         Console.WriteLine("✔ Adoptante registrado.");
@@ -197,26 +246,24 @@ class Program
         }
 
         VerAnimales();
-        Console.Write("Ingrese el ID del animal: ");
-        int idAnimal = int.Parse(Console.ReadLine());
+        if (!LeerEntero("Ingrese el ID del animal: ", out int idAnimal)) return;
 
         VerAdoptantes();
-        Console.Write("Ingrese el ID del adoptante: ");
-        int idAdoptante = int.Parse(Console.ReadLine());
+        if (!LeerEntero("Ingrese el ID del adoptante: ", out int idAdoptante)) return;
 
-        Animal animal = animales.Find(a => a.Id == idAnimal);
-        Adoptante adoptante = adoptantes.Find(a => a.Id == idAdoptante);
+        Animal? animal = animales.Find(a => a.Id == idAnimal);
+        Adoptante? adoptante = adoptantes.Find(a => a.Id == idAdoptante);
 
         if (animal == null || adoptante == null)
         {
-            Console.WriteLine("ID inválido.");
+            Console.WriteLine("✖ ID inválido.");
             return;
         }
 
-        Adopcion adopcion = new Adopcion(1, animal, adoptante);
-        Console.Write("¿Aprobar adopción? (s/n): ");
-        string respuesta = Console.ReadLine();
+        Adopcion adopcion = new Adopcion(adopciones.Count + 1, animal, adoptante);
+        adopciones.Add(adopcion);
 
+        string? respuesta = LeerTexto("¿Aprobar adopción? (s/n): ");
         if (respuesta?.ToLower() == "s")
             adopcion.Aprobar();
         else
@@ -228,16 +275,16 @@ class Program
         if (animales.Count == 0) { Console.WriteLine("No hay animales registrados."); return; }
 
         VerAnimales();
-        Console.Write("Ingrese el ID del animal: ");
-        int id = int.Parse(Console.ReadLine());
+        if (!LeerEntero("Ingrese el ID del animal: ", out int id)) return;
 
-        Animal animal = animales.Find(a => a.Id == id);
-        if (animal == null) { Console.WriteLine("ID inválido."); return; }
+        Animal? animal = animales.Find(a => a.Id == id);
+        if (animal == null) { Console.WriteLine("✖ ID inválido."); return; }
 
-        Console.Write("Diagnóstico: ");
-        string dx = Console.ReadLine();
-        Console.Write("Tratamiento: ");
-        string tx = Console.ReadLine();
+        string? dx = LeerTexto("Diagnóstico: ");
+        if (dx == null) { Console.WriteLine("✖ El diagnóstico no puede estar vacío."); return; }
+
+        string? tx = LeerTexto("Tratamiento: ");
+        if (tx == null) { Console.WriteLine("✖ El tratamiento no puede estar vacío."); return; }
 
         registros.Add(new RegistroMedico(registros.Count + 1, animal, dx, tx));
         Console.WriteLine("✔ Registro médico guardado.");
