@@ -4,13 +4,13 @@
 /// Representa un animal registrado en el refugio.
 /// Contiene información básica y permite actualizar su estado dentro del sistema.
 /// </summary>
-public class Animal
+public class Animal 
 {
     // Campos privados
     private int id;
-    private string nombre;
-    private string especie;
-    private string estado;
+    private string nombre = string.Empty;
+    private string especie = string.Empty;
+    private string estado = string.Empty;
     private DateTime fechaIngreso;
 
     /// <summary>

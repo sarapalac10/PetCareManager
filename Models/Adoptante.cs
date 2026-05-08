@@ -6,8 +6,8 @@
 public class Adoptante
 {
     private int id;
-    private string nombre;
-    private string telefono;
+    private string nombre = string.Empty;
+    private string telefono = string.Empty;
 
     /// <summary>
     /// Identificador único del adoptante.
