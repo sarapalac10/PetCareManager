@@ -74,7 +74,7 @@ namespace PetCareInterface
         }
 
         // --- 3. SECCIÓN ACCIONES SEGURAS (Requisito de Tarea: Confirmación) ---
-        // Nota: Asegúrate de crear un botón en el diseño y llamarlo btnRechazar
+        
         private void btnRechazar_Click(object sender, EventArgs e)
         {
             // Cuadro de diálogo para confirmar acción irreversible
