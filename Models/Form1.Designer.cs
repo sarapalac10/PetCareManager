@@ -204,6 +204,7 @@ namespace PetCareInterface
             this.lblTelefono.AutoSize = true;
             this.txtTelefonoAdoptante.Location = new System.Drawing.Point(80, 62);
             this.txtTelefonoAdoptante.Size = new System.Drawing.Size(240, 23);
+            this.txtTelefonoAdoptante.MaxLength = 10;
 
             this.btnRegistrarAdoptante.Text = "Registrar";
             this.btnRegistrarAdoptante.Location = new System.Drawing.Point(335, 35);

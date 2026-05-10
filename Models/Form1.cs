@@ -20,7 +20,14 @@ namespace PetCareInterface
         public Form1()
         {
             InitializeComponent();
+            txtTelefonoAdoptante.KeyPress += txtTelefonoAdoptante_KeyPress;
             CargarDatosIniciales();
+        }
+
+        private void txtTelefonoAdoptante_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
+                e.Handled = true;
         }
 
         // ── Datos de prueba para demostración ────────────────────────────────
@@ -162,7 +169,27 @@ namespace PetCareInterface
                     return;
                 }
 
-                var adoptante = new Adoptante(contadorAdoptantes++, txtNombreAdoptante.Text.Trim(), txtTelefonoAdoptante.Text.Trim());
+                string telefono = txtTelefonoAdoptante.Text.Trim();
+                foreach (char c in telefono)
+                {
+                    if (!char.IsDigit(c))
+                    {
+                        MessageBox.Show("El teléfono solo puede contener números.",
+                            "Dato inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtTelefonoAdoptante.Focus();
+                        return;
+                    }
+                }
+
+                if (telefono.Length != 10)
+                {
+                    MessageBox.Show("El teléfono debe tener exactamente 10 dígitos.",
+                        "Dato inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtTelefonoAdoptante.Focus();
+                    return;
+                }
+
+                var adoptante = new Adoptante(contadorAdoptantes++, txtNombreAdoptante.Text.Trim(), telefono);
                 listaAdoptantes.Add(adoptante);
 
                 RefrescarGridAdoptantes();
