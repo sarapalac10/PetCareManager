@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 namespace PetCareInterface
@@ -10,8 +10,7 @@ namespace PetCareInterface
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            // Esta línea es la que lanza tu ventana
             Application.Run(new Form1());
         }
     }
-} 
+}
