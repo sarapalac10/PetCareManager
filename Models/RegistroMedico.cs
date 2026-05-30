@@ -26,4 +26,17 @@ public class RegistroMedico
         Tratamiento = tratamiento;
         Fecha = DateTime.Now;
     }
+
+    /// <summary>
+    /// Constructor usado para reconstruir un registro médico a partir de los
+    /// datos almacenados en la base de datos (conserva su fecha original).
+    /// </summary>
+    public RegistroMedico(int id, Animal animal, string diagnostico, string tratamiento, DateTime fecha)
+    {
+        Id = id;
+        Animal = animal;
+        Diagnostico = diagnostico;
+        Tratamiento = tratamiento;
+        Fecha = fecha;
+    }
 }

@@ -1,435 +1,558 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
+using PetCareInterface.Repositories;
 
 namespace PetCareInterface
 {
+    /// <summary>
+    /// Ventana principal. Orquesta el CRUD de las cuatro entidades a través de
+    /// los repositorios inyectados. No conoce SQL: solo llama a los contratos
+    /// <see cref="IRepository{T}"/> (Inversión de Dependencias - SOLID).
+    /// </summary>
     public partial class Form1 : Form
     {
-        // ── Listas en memoria (backend) ──────────────────────────────────────
-        private List<Animal> listaAnimales = new List<Animal>();
-        private List<Adoptante> listaAdoptantes = new List<Adoptante>();
-        private List<Adopcion> listaAdopciones = new List<Adopcion>();
-        private List<RegistroMedico> listaRegistrosMedicos = new List<RegistroMedico>();
+        private readonly IRepository<Animal> _animales;
+        private readonly IRepository<Adoptante> _adoptantes;
+        private readonly IRepository<Adopcion> _adopciones;
+        private readonly IRepository<RegistroMedico> _registros;
 
-        private int contadorAnimales = 1;
-        private int contadorAdoptantes = 1;
-        private int contadorAdopciones = 1;
-        private int contadorRegistros = 1;
+        // Evita que los eventos de selección se disparen mientras recargamos datos.
+        private bool _cargando;
 
-        public Form1()
+        public Form1(
+            IRepository<Animal> animales,
+            IRepository<Adoptante> adoptantes,
+            IRepository<Adopcion> adopciones,
+            IRepository<RegistroMedico> registros)
         {
+            _animales = animales;
+            _adoptantes = adoptantes;
+            _adopciones = adopciones;
+            _registros = registros;
             InitializeComponent();
-            txtTelefonoAdoptante.KeyPress += txtTelefonoAdoptante_KeyPress;
-            CargarDatosIniciales();
         }
 
-        private void txtTelefonoAdoptante_KeyPress(object sender, KeyPressEventArgs e)
+        private void Form1_Load(object sender, EventArgs e)
         {
-            if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar))
-                e.Handled = true;
+            RefrescarTodo();
         }
 
-        // ── Datos de prueba para demostración ────────────────────────────────
-        private void CargarDatosIniciales()
+        /// <summary>Recarga todas las tablas y combos desde la base de datos.</summary>
+        private void RefrescarTodo()
         {
+            _cargando = true;
             try
             {
-                var a1 = new Animal(contadorAnimales++, "Luna", "Perro");
-                a1.ActualizarEstado("Disponible");
-                listaAnimales.Add(a1);
-
-                var a2 = new Animal(contadorAnimales++, "Michi", "Gato");
-                listaAnimales.Add(a2);
-
-                var ad1 = new Adoptante(contadorAdoptantes++, "Carlos Pérez", "3001234567");
-                listaAdoptantes.Add(ad1);
-
-                RefrescarGridAnimales();
-                RefrescarGridAdoptantes();
-                RefrescarGridAdopciones();
-                RefrescarGridRegistros();
-                RefrescarCombosAdopcion();
-                RefrescarCombosRegistro();
+                CargarAnimales();
+                CargarAdoptantes();
+                CargarAdopciones();
+                CargarRegistros();
+                CargarCombos();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar datos iniciales: " + ex.Message,
-                    "PetCare Manager", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MostrarError("Error al cargar los datos:\n" + ex.Message);
+            }
+            finally
+            {
+                _cargando = false;
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        //  TAB 1 — ANIMALES
-        // ════════════════════════════════════════════════════════════════════
+        // ============================================================
+        //  ANIMALES
+        // ============================================================
 
-        private void btnRegistrarAnimal_Click(object sender, EventArgs e)
+        private void CargarAnimales()
+        {
+            dgvAnimales.DataSource = _animales.ObtenerTodos().ToList();
+        }
+
+        private void btnGuardarAnimal_Click(object sender, EventArgs e)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(txtNombreAnimal.Text) ||
-                    string.IsNullOrWhiteSpace(txtEspecieAnimal.Text))
+                if (!TryLeerEntero(txtIdAnimal, "el ID del animal", out int id)) return;
+
+                if (cboEstadoAnimal.SelectedItem == null)
                 {
-                    MessageBox.Show("Por favor completa Nombre y Especie del animal.",
-                        "Campo obligatorio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MostrarAdvertencia("Selecciona el estado del animal.");
                     return;
                 }
 
-                var animal = new Animal(contadorAnimales++, txtNombreAnimal.Text.Trim(), txtEspecieAnimal.Text.Trim());
-                listaAnimales.Add(animal);
+                // La validación de nombre/especie ocurre dentro de la entidad Animal.
+                var animal = new Animal(
+                    id,
+                    txtNombreAnimal.Text.Trim(),
+                    txtEspecieAnimal.Text.Trim(),
+                    cboEstadoAnimal.SelectedItem.ToString(),
+                    DateTime.Now);
 
-                RefrescarGridAnimales();
-                RefrescarCombosAdopcion();
-                RefrescarCombosRegistro();
+                bool existe = _animales.ObtenerPorId(id) != null;
+                if (existe)
+                {
+                    _animales.Actualizar(animal);
+                    MostrarInfo("Animal actualizado correctamente.");
+                }
+                else
+                {
+                    _animales.Agregar(animal);
+                    MostrarInfo("Animal registrado correctamente.");
+                }
 
-                txtNombreAnimal.Clear();
-                txtEspecieAnimal.Clear();
+                RefrescarTodo();
+                LimpiarAnimal();
+            }
+            catch (ArgumentException ex)        // Validación de la capa lógica (entidad)
+            {
+                MostrarAdvertencia(ex.Message);
+            }
+            catch (DataAccessException ex)       // Error de la capa de datos
+            {
+                MostrarError(ex.Message);
+            }
+        }
 
-                MessageBox.Show($"Animal \"{animal.Nombre}\" registrado exitosamente. ID asignado: {animal.Id}",
-                    "Registro exitoso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        private void btnEliminarAnimal_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!TryLeerEntero(txtIdAnimal, "el ID del animal", out int id)) return;
+                if (!ConfirmarEliminacion("este animal")) return;
+
+                _animales.Eliminar(id);
+                MostrarInfo("Animal eliminado.");
+                RefrescarTodo();
+                LimpiarAnimal();
+            }
+            catch (DataAccessException ex)
+            {
+                MostrarError(ex.Message);
+            }
+        }
+
+        private void btnLimpiarAnimal_Click(object sender, EventArgs e) => LimpiarAnimal();
+
+        private void LimpiarAnimal()
+        {
+            txtIdAnimal.Clear();
+            txtNombreAnimal.Clear();
+            txtEspecieAnimal.Clear();
+            cboEstadoAnimal.SelectedIndex = -1;
+        }
+
+        private void dgvAnimales_SelectionChanged(object sender, EventArgs e)
+        {
+            if (_cargando) return;
+            if (dgvAnimales.CurrentRow?.DataBoundItem is Animal animal)
+            {
+                txtIdAnimal.Text = animal.Id.ToString();
+                txtNombreAnimal.Text = animal.Nombre;
+                txtEspecieAnimal.Text = animal.Especie;
+                cboEstadoAnimal.SelectedItem = animal.Estado;
+            }
+        }
+
+        // ============================================================
+        //  ADOPTANTES
+        // ============================================================
+
+        private void CargarAdoptantes()
+        {
+            dgvAdoptantes.DataSource = _adoptantes.ObtenerTodos().ToList();
+        }
+
+        private void btnGuardarAdoptante_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!TryLeerEntero(txtIdAdoptante, "la cédula", out int id)) return;
+
+                var adoptante = new Adoptante(
+                    id,
+                    txtNombreAdoptante.Text.Trim(),
+                    txtTelefonoAdoptante.Text.Trim());
+
+                bool existe = _adoptantes.ObtenerPorId(id) != null;
+                if (existe)
+                {
+                    _adoptantes.Actualizar(adoptante);
+                    MostrarInfo("Adoptante actualizado correctamente.");
+                }
+                else
+                {
+                    _adoptantes.Agregar(adoptante);
+                    MostrarInfo("Adoptante registrado correctamente.");
+                }
+
+                RefrescarTodo();
+                LimpiarAdoptante();
             }
             catch (ArgumentException ex)
             {
-                MessageBox.Show("Dato inválido: " + ex.Message,
-                    "Error de validación", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MostrarAdvertencia(ex.Message);
             }
-            catch (Exception ex)
+            catch (DataAccessException ex)
             {
-                MessageBox.Show("Error inesperado: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MostrarError(ex.Message);
             }
         }
 
-        private void btnActualizarEstado_Click(object sender, EventArgs e)
+        private void btnEliminarAdoptante_Click(object sender, EventArgs e)
         {
             try
             {
-                if (dgvAnimales.SelectedRows.Count == 0)
-                {
-                    MessageBox.Show("Selecciona un animal de la lista para actualizar su estado.",
-                        "Selección requerida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                if (!TryLeerEntero(txtIdAdoptante, "la cédula", out int id)) return;
+                if (!ConfirmarEliminacion("este adoptante")) return;
 
-                if (cmbEstadoAnimal.SelectedItem == null)
-                {
-                    MessageBox.Show("Selecciona un estado válido.",
-                        "Campo obligatorio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                int id = (int)dgvAnimales.SelectedRows[0].Cells["colAnimalId"].Value;
-                var animal = listaAnimales.Find(a => a.Id == id);
-
-                if (animal == null)
-                {
-                    MessageBox.Show("Animal no encontrado.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                string nuevoEstado = cmbEstadoAnimal.SelectedItem.ToString();
-                animal.ActualizarEstado(nuevoEstado);
-                RefrescarGridAnimales();
-
-                MessageBox.Show($"Estado de \"{animal.Nombre}\" actualizado a: {nuevoEstado}",
-                    "Actualización exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _adoptantes.Eliminar(id);
+                MostrarInfo("Adoptante eliminado.");
+                RefrescarTodo();
+                LimpiarAdoptante();
             }
-            catch (ArgumentException ex)
+            catch (DataAccessException ex)
             {
-                MessageBox.Show("Error de validación: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error inesperado: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MostrarError(ex.Message);
             }
         }
 
-        private void RefrescarGridAnimales()
+        private void btnLimpiarAdoptante_Click(object sender, EventArgs e) => LimpiarAdoptante();
+
+        private void LimpiarAdoptante()
         {
-            dgvAnimales.Rows.Clear();
-            foreach (var a in listaAnimales)
-                dgvAnimales.Rows.Add(a.Id, a.Nombre, a.Especie, a.Estado, a.FechaIngreso.ToShortDateString());
+            txtIdAdoptante.Clear();
+            txtNombreAdoptante.Clear();
+            txtTelefonoAdoptante.Clear();
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        //  TAB 2 — ADOPTANTES
-        // ════════════════════════════════════════════════════════════════════
-
-        private void btnRegistrarAdoptante_Click(object sender, EventArgs e)
+        private void dgvAdoptantes_SelectionChanged(object sender, EventArgs e)
         {
-            try
+            if (_cargando) return;
+            if (dgvAdoptantes.CurrentRow?.DataBoundItem is Adoptante adoptante)
             {
-                if (string.IsNullOrWhiteSpace(txtNombreAdoptante.Text) ||
-                    string.IsNullOrWhiteSpace(txtTelefonoAdoptante.Text))
-                {
-                    MessageBox.Show("Por favor completa Nombre y Teléfono del adoptante.",
-                        "Campo obligatorio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                string telefono = txtTelefonoAdoptante.Text.Trim();
-                foreach (char c in telefono)
-                {
-                    if (!char.IsDigit(c))
-                    {
-                        MessageBox.Show("El teléfono solo puede contener números.",
-                            "Dato inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        txtTelefonoAdoptante.Focus();
-                        return;
-                    }
-                }
-
-                if (telefono.Length != 10)
-                {
-                    MessageBox.Show("El teléfono debe tener exactamente 10 dígitos.",
-                        "Dato inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtTelefonoAdoptante.Focus();
-                    return;
-                }
-
-                var adoptante = new Adoptante(contadorAdoptantes++, txtNombreAdoptante.Text.Trim(), telefono);
-                listaAdoptantes.Add(adoptante);
-
-                RefrescarGridAdoptantes();
-                RefrescarCombosAdopcion();
-
-                txtNombreAdoptante.Clear();
-                txtTelefonoAdoptante.Clear();
-
-                MessageBox.Show($"Adoptante \"{adoptante.Nombre}\" registrado exitosamente. ID asignado: {adoptante.Id}",
-                    "Registro exitoso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (ArgumentException ex)
-            {
-                MessageBox.Show("Dato inválido: " + ex.Message,
-                    "Error de validación", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error inesperado: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                txtIdAdoptante.Text = adoptante.Id.ToString();
+                txtNombreAdoptante.Text = adoptante.Nombre;
+                txtTelefonoAdoptante.Text = adoptante.Telefono;
             }
         }
 
-        private void RefrescarGridAdoptantes()
+        // ============================================================
+        //  ADOPCIONES
+        // ============================================================
+
+        private void CargarAdopciones()
         {
-            dgvAdoptantes.Rows.Clear();
-            foreach (var ad in listaAdoptantes)
-                dgvAdoptantes.Rows.Add(ad.Id, ad.Nombre, ad.Telefono);
+            var datos = _adopciones.ObtenerTodos()
+                .Select(a => new
+                {
+                    a.Id,
+                    Animal = a.Animal.Nombre,
+                    Adoptante = a.Adoptante.Nombre,
+                    Fecha = a.FechaSolicitud.ToString("yyyy-MM-dd"),
+                    Estado = a.Estado.ToString()
+                })
+                .ToList();
+            dgvAdopciones.DataSource = datos;
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        //  TAB 3 — ADOPCIONES
-        // ════════════════════════════════════════════════════════════════════
-
-        private void RefrescarCombosAdopcion()
-        {
-            cmbAnimalAdopcion.Items.Clear();
-            foreach (var a in listaAnimales)
-                if (a.EsAdoptable())
-                    cmbAnimalAdopcion.Items.Add($"{a.Id} - {a.Nombre} ({a.Especie})");
-
-            cmbAdoptanteAdopcion.Items.Clear();
-            foreach (var ad in listaAdoptantes)
-                cmbAdoptanteAdopcion.Items.Add($"{ad.Id} - {ad.Nombre}");
-        }
-
-        private void btnCrearAdopcion_Click(object sender, EventArgs e)
+        private void btnGuardarAdopcion_Click(object sender, EventArgs e)
         {
             try
             {
-                if (cmbAnimalAdopcion.SelectedIndex < 0 || cmbAdoptanteAdopcion.SelectedIndex < 0)
+                if (!TryLeerEntero(txtIdAdopcion, "el ID de la adopción", out int id)) return;
+
+                if (cboAnimalAdopcion.SelectedItem is not Animal animal ||
+                    cboAdoptanteAdopcion.SelectedItem is not Adoptante adoptante)
                 {
-                    MessageBox.Show("Selecciona un animal disponible y un adoptante.",
-                        "Campo obligatorio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MostrarAdvertencia("Selecciona el animal y el adoptante.");
                     return;
                 }
 
-                string itemAnimal = cmbAnimalAdopcion.SelectedItem.ToString();
-                int idAnimal = int.Parse(itemAnimal.Split('-')[0].Trim());
-                var animal = listaAnimales.Find(a => a.Id == idAnimal);
-
-                string itemAdoptante = cmbAdoptanteAdopcion.SelectedItem.ToString();
-                int idAdoptante = int.Parse(itemAdoptante.Split('-')[0].Trim());
-                var adoptante = listaAdoptantes.Find(a => a.Id == idAdoptante);
-
-                if (animal == null || adoptante == null)
+                if (_adopciones.ObtenerPorId(id) != null)
                 {
-                    MessageBox.Show("No se encontró el animal o adoptante seleccionado.",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MostrarAdvertencia($"Ya existe una adopción con el ID {id}.");
                     return;
                 }
 
-                var adopcion = new Adopcion(contadorAdopciones++, animal, adoptante);
-                listaAdopciones.Add(adopcion);
+                var adopcion = new Adopcion(id, animal, adoptante); // queda EN_REVISION
+                _adopciones.Agregar(adopcion);
+                MostrarInfo("Solicitud de adopción registrada (En revisión).");
 
-                RefrescarGridAdopciones();
-                RefrescarCombosAdopcion();
-                cmbAnimalAdopcion.SelectedIndex = -1;
-                cmbAdoptanteAdopcion.SelectedIndex = -1;
-
-                MessageBox.Show($"Solicitud de adopción creada.\nAnimal: {animal.Nombre}\nAdoptante: {adoptante.Nombre}\nEstado: EN REVISIÓN",
-                    "Adopción registrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                RefrescarTodo();
+                LimpiarAdopcion();
             }
-            catch (Exception ex)
+            catch (DataAccessException ex)
             {
-                MessageBox.Show("Error al crear la adopción: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MostrarError(ex.Message);
             }
         }
 
         private void btnAprobarAdopcion_Click(object sender, EventArgs e)
         {
-            try
-            {
-                if (dgvAdopciones.SelectedRows.Count == 0)
-                {
-                    MessageBox.Show("Selecciona una adopción de la lista.",
-                        "Selección requerida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                int id = (int)dgvAdopciones.SelectedRows[0].Cells["colAdopcionId"].Value;
-                var adopcion = listaAdopciones.Find(a => a.Id == id);
-                if (adopcion == null) return;
-
-                if (adopcion.Estado != EstadoAdopcion.EN_REVISION)
-                {
-                    MessageBox.Show("Solo se pueden aprobar adopciones EN REVISIÓN.",
-                        "Operación no permitida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                adopcion.Aprobar();
-                RefrescarGridAdopciones();
-                RefrescarGridAnimales();
-
-                MessageBox.Show($"Adopción aprobada. \"{adopcion.Animal.Nombre}\" tiene un nuevo hogar con {adopcion.Adoptante.Nombre}.",
-                    "Adopción aprobada", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al aprobar adopción: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            CambiarEstadoAdopcion(aprobar: true);
         }
 
         private void btnRechazarAdopcion_Click(object sender, EventArgs e)
         {
+            CambiarEstadoAdopcion(aprobar: false);
+        }
+
+        /// <summary>
+        /// Aprueba o rechaza la adopción indicada en el ID. Al aprobar, el animal
+        /// pasa a estado "Adoptado" y ese cambio también se persiste.
+        /// </summary>
+        private void CambiarEstadoAdopcion(bool aprobar)
+        {
             try
             {
-                if (dgvAdopciones.SelectedRows.Count == 0)
+                if (!TryLeerEntero(txtIdAdopcion, "el ID de la adopción", out int id)) return;
+
+                Adopcion? adopcion = _adopciones.ObtenerPorId(id);
+                if (adopcion == null)
                 {
-                    MessageBox.Show("Selecciona una adopción de la lista.",
-                        "Selección requerida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MostrarAdvertencia($"No existe una adopción con el ID {id}.");
                     return;
                 }
 
-                int id = (int)dgvAdopciones.SelectedRows[0].Cells["colAdopcionId"].Value;
-                var adopcion = listaAdopciones.Find(a => a.Id == id);
-                if (adopcion == null) return;
-
-                if (adopcion.Estado != EstadoAdopcion.EN_REVISION)
+                if (aprobar)
                 {
-                    MessageBox.Show("Solo se pueden rechazar adopciones EN REVISIÓN.",
-                        "Operación no permitida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    adopcion.Aprobar();                  // regla de negocio en la entidad
+                    _adopciones.Actualizar(adopcion);
+                    _animales.Actualizar(adopcion.Animal); // persiste el nuevo estado del animal
+                    MostrarInfo("Adopción aprobada. El animal quedó como 'Adoptado'.");
                 }
-
-                var confirm = MessageBox.Show($"¿Confirmas rechazar la adopción de \"{adopcion.Animal.Nombre}\"?",
-                    "Confirmar rechazo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-                if (confirm == DialogResult.Yes)
+                else
                 {
                     adopcion.Rechazar();
-                    RefrescarGridAdopciones();
-                    MessageBox.Show("Solicitud de adopción rechazada.",
-                        "Operación completada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _adopciones.Actualizar(adopcion);
+                    MostrarInfo("Adopción rechazada.");
                 }
+
+                RefrescarTodo();
+                LimpiarAdopcion();
             }
-            catch (Exception ex)
+            catch (DataAccessException ex)
             {
-                MessageBox.Show("Error al rechazar adopción: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MostrarError(ex.Message);
             }
         }
 
-        private void RefrescarGridAdopciones()
-        {
-            dgvAdopciones.Rows.Clear();
-            foreach (var ad in listaAdopciones)
-                dgvAdopciones.Rows.Add(ad.Id, ad.Animal.Nombre, ad.Adoptante.Nombre,
-                    ad.Estado.ToString(), ad.FechaSolicitud.ToShortDateString());
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        //  TAB 4 — REGISTROS MÉDICOS
-        // ════════════════════════════════════════════════════════════════════
-
-        private void RefrescarCombosRegistro()
-        {
-            cmbAnimalRegistro.Items.Clear();
-            foreach (var a in listaAnimales)
-                cmbAnimalRegistro.Items.Add($"{a.Id} - {a.Nombre}");
-        }
-
-        private void btnAgregarRegistro_Click(object sender, EventArgs e)
+        private void btnEliminarAdopcion_Click(object sender, EventArgs e)
         {
             try
             {
-                if (cmbAnimalRegistro.SelectedIndex < 0 ||
-                    string.IsNullOrWhiteSpace(txtDiagnostico.Text) ||
+                if (!TryLeerEntero(txtIdAdopcion, "el ID de la adopción", out int id)) return;
+                if (!ConfirmarEliminacion("esta adopción")) return;
+
+                _adopciones.Eliminar(id);
+                MostrarInfo("Adopción eliminada.");
+                RefrescarTodo();
+                LimpiarAdopcion();
+            }
+            catch (DataAccessException ex)
+            {
+                MostrarError(ex.Message);
+            }
+        }
+
+        private void btnLimpiarAdopcion_Click(object sender, EventArgs e) => LimpiarAdopcion();
+
+        private void LimpiarAdopcion()
+        {
+            txtIdAdopcion.Clear();
+            cboAnimalAdopcion.SelectedIndex = -1;
+            cboAdoptanteAdopcion.SelectedIndex = -1;
+            lblEstadoAdopcionValor.Text = "-";
+        }
+
+        private void dgvAdopciones_SelectionChanged(object sender, EventArgs e)
+        {
+            if (_cargando) return;
+            if (dgvAdopciones.CurrentRow == null) return;
+
+            object? valorId = dgvAdopciones.CurrentRow.Cells["Id"].Value;
+            if (valorId == null) return;
+
+            Adopcion? adopcion = _adopciones.ObtenerPorId(Convert.ToInt32(valorId));
+            if (adopcion == null) return;
+
+            txtIdAdopcion.Text = adopcion.Id.ToString();
+            SeleccionarEnCombo(cboAnimalAdopcion, adopcion.Animal.Id);
+            SeleccionarEnCombo(cboAdoptanteAdopcion, adopcion.Adoptante.Id);
+            lblEstadoAdopcionValor.Text = adopcion.Estado.ToString();
+        }
+
+        // ============================================================
+        //  REGISTROS MÉDICOS
+        // ============================================================
+
+        private void CargarRegistros()
+        {
+            var datos = _registros.ObtenerTodos()
+                .Select(r => new
+                {
+                    r.Id,
+                    Animal = r.Animal.Nombre,
+                    r.Diagnostico,
+                    r.Tratamiento,
+                    Fecha = r.Fecha.ToString("yyyy-MM-dd")
+                })
+                .ToList();
+            dgvRegistros.DataSource = datos;
+        }
+
+        private void btnGuardarRegistro_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!TryLeerEntero(txtIdRegistro, "el ID del registro", out int id)) return;
+
+                if (cboAnimalRegistro.SelectedItem is not Animal animal)
+                {
+                    MostrarAdvertencia("Selecciona el animal del registro médico.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(txtDiagnostico.Text) ||
                     string.IsNullOrWhiteSpace(txtTratamiento.Text))
                 {
-                    MessageBox.Show("Completa todos los campos: Animal, Diagnóstico y Tratamiento.",
-                        "Campo obligatorio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MostrarAdvertencia("Completa el diagnóstico y el tratamiento.");
                     return;
                 }
 
-                string itemAnimal = cmbAnimalRegistro.SelectedItem.ToString();
-                int idAnimal = int.Parse(itemAnimal.Split('-')[0].Trim());
-                var animal = listaAnimales.Find(a => a.Id == idAnimal);
+                var registro = new RegistroMedico(
+                    id,
+                    animal,
+                    txtDiagnostico.Text.Trim(),
+                    txtTratamiento.Text.Trim());
 
-                if (animal == null)
+                bool existe = _registros.ObtenerPorId(id) != null;
+                if (existe)
                 {
-                    MessageBox.Show("Animal no encontrado.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
+                    _registros.Actualizar(registro);
+                    MostrarInfo("Registro médico actualizado.");
+                }
+                else
+                {
+                    _registros.Agregar(registro);
+                    MostrarInfo("Registro médico guardado.");
                 }
 
-                var registro = new RegistroMedico(contadorRegistros++, animal,
-                    txtDiagnostico.Text.Trim(), txtTratamiento.Text.Trim());
-                listaRegistrosMedicos.Add(registro);
-
-                RefrescarGridRegistros();
-                cmbAnimalRegistro.SelectedIndex = -1;
-                txtDiagnostico.Clear();
-                txtTratamiento.Clear();
-
-                MessageBox.Show($"Registro médico agregado para \"{animal.Nombre}\".",
-                    "Registro exitoso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                RefrescarTodo();
+                LimpiarRegistro();
             }
-            catch (Exception ex)
+            catch (DataAccessException ex)
             {
-                MessageBox.Show("Error al guardar registro médico: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MostrarError(ex.Message);
             }
         }
 
-        private void RefrescarGridRegistros()
+        private void btnEliminarRegistro_Click(object sender, EventArgs e)
         {
-            dgvRegistros.Rows.Clear();
-            foreach (var r in listaRegistrosMedicos)
-                dgvRegistros.Rows.Add(r.Id, r.Animal.Nombre, r.Diagnostico,
-                    r.Tratamiento, r.Fecha.ToShortDateString());
+            try
+            {
+                if (!TryLeerEntero(txtIdRegistro, "el ID del registro", out int id)) return;
+                if (!ConfirmarEliminacion("este registro médico")) return;
+
+                _registros.Eliminar(id);
+                MostrarInfo("Registro médico eliminado.");
+                RefrescarTodo();
+                LimpiarRegistro();
+            }
+            catch (DataAccessException ex)
+            {
+                MostrarError(ex.Message);
+            }
         }
 
-        // ── Eventos requeridos por el diseñador original ─────────────────────
-        private void txtNombre_TextChanged(object sender, EventArgs e) { }
-        private void label1_Click(object sender, EventArgs e) { }
-        private void label5_Click(object sender, EventArgs e) { }
-        private void textBox3_TextChanged(object sender, EventArgs e) { }
-        private void txtIdAdoptante_TextChanged(object sender, EventArgs e) { }
+        private void btnLimpiarRegistro_Click(object sender, EventArgs e) => LimpiarRegistro();
+
+        private void LimpiarRegistro()
+        {
+            txtIdRegistro.Clear();
+            cboAnimalRegistro.SelectedIndex = -1;
+            txtDiagnostico.Clear();
+            txtTratamiento.Clear();
+        }
+
+        private void dgvRegistros_SelectionChanged(object sender, EventArgs e)
+        {
+            if (_cargando) return;
+            if (dgvRegistros.CurrentRow == null) return;
+
+            object? valorId = dgvRegistros.CurrentRow.Cells["Id"].Value;
+            if (valorId == null) return;
+
+            RegistroMedico? registro = _registros.ObtenerPorId(Convert.ToInt32(valorId));
+            if (registro == null) return;
+
+            txtIdRegistro.Text = registro.Id.ToString();
+            SeleccionarEnCombo(cboAnimalRegistro, registro.Animal.Id);
+            txtDiagnostico.Text = registro.Diagnostico;
+            txtTratamiento.Text = registro.Tratamiento;
+        }
+
+        // ============================================================
+        //  COMBOS Y UTILIDADES
+        // ============================================================
+
+        /// <summary>Llena los combos de animales y adoptantes desde la BD.</summary>
+        private void CargarCombos()
+        {
+            List<Animal> animales = _animales.ObtenerTodos().ToList();
+            List<Adoptante> adoptantes = _adoptantes.ObtenerTodos().ToList();
+
+            // Cada combo necesita su propia instancia de lista para no compartir selección.
+            ConfigurarCombo(cboAnimalAdopcion, new List<Animal>(animales), "Nombre", "Id");
+            ConfigurarCombo(cboAnimalRegistro, new List<Animal>(animales), "Nombre", "Id");
+            ConfigurarCombo(cboAdoptanteAdopcion, new List<Adoptante>(adoptantes), "Nombre", "Id");
+        }
+
+        private static void ConfigurarCombo(ComboBox combo, object fuente, string display, string value)
+        {
+            combo.DataSource = fuente;
+            combo.DisplayMember = display;
+            combo.ValueMember = value;
+            combo.SelectedIndex = -1;
+        }
+
+        private static void SeleccionarEnCombo(ComboBox combo, int id)
+        {
+            combo.SelectedValue = id;
+        }
+
+        /// <summary>
+        /// Validación desde la GUI: intenta leer un entero del cuadro de texto.
+        /// </summary>
+        private bool TryLeerEntero(TextBox caja, string campo, out int valor)
+        {
+            if (!int.TryParse(caja.Text.Trim(), out valor))
+            {
+                MostrarAdvertencia($"Escribe un número válido en {campo}.");
+                caja.Focus();
+                return false;
+            }
+            return true;
+        }
+
+        private bool ConfirmarEliminacion(string descripcion)
+        {
+            return MessageBox.Show(
+                $"¿Seguro que deseas eliminar {descripcion}? Esta acción no se puede deshacer.",
+                "Confirmar eliminación",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning) == DialogResult.Yes;
+        }
+
+        private void MostrarInfo(string mensaje) =>
+            MessageBox.Show(mensaje, "PetCare Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+        private void MostrarAdvertencia(string mensaje) =>
+            MessageBox.Show(mensaje, "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+        private void MostrarError(string mensaje) =>
+            MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 }

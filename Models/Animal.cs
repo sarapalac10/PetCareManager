@@ -65,6 +65,19 @@ public class Animal
     }
 
     /// <summary>
+    /// Constructor usado para reconstruir un animal a partir de los datos
+    /// almacenados en la base de datos (conserva su estado y fecha originales).
+    /// </summary>
+    public Animal(int id, string nombre, string especie, string estado, DateTime fechaIngreso)
+    {
+        this.id = id;
+        Nombre = nombre;
+        Especie = especie;
+        Estado = estado;
+        this.fechaIngreso = fechaIngreso;
+    }
+
+    /// <summary>
     /// Permite actualizar el estado del animal.
     /// </summary>
     public void ActualizarEstado(string nuevoEstado)

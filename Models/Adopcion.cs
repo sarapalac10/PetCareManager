@@ -28,6 +28,19 @@ public class Adopcion
     }
 
     /// <summary>
+    /// Constructor usado para reconstruir una adopción a partir de los datos
+    /// almacenados en la base de datos (conserva su fecha y estado originales).
+    /// </summary>
+    public Adopcion(int id, Animal animal, Adoptante adoptante, DateTime fechaSolicitud, EstadoAdopcion estado)
+    {
+        Id = id;
+        Animal = animal;
+        Adoptante = adoptante;
+        FechaSolicitud = fechaSolicitud;
+        Estado = estado;
+    }
+
+    /// <summary>
     /// Aprueba la adopción y actualiza el estado del animal.
     /// </summary>
     public void Aprobar()
