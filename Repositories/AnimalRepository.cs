@@ -121,6 +121,17 @@ namespace PetCareInterface.Repositories
             try
             {
                 using SqliteConnection conexion = _connectionFactory.CreateConnection();
+
+                // Integridad referencial: no se puede borrar un animal que tenga
+                // adopciones o registros médicos asociados (quedarían huérfanos).
+                int adopciones = ContarReferencias(conexion, "Adopciones", "AnimalId", id);
+                int registros = ContarReferencias(conexion, "RegistrosMedicos", "AnimalId", id);
+                if (adopciones > 0 || registros > 0)
+                    throw new DataAccessException(
+                        $"No se puede eliminar el animal: tiene {adopciones} adopción(es) y " +
+                        $"{registros} registro(s) médico(s) asociados. Elimina primero esos registros.",
+                        new InvalidOperationException());
+
                 using SqliteCommand comando = conexion.CreateCommand();
                 comando.CommandText = "DELETE FROM Animales WHERE Id = $id;";
                 comando.Parameters.AddWithValue("$id", id);
@@ -135,6 +146,20 @@ namespace PetCareInterface.Repositories
             {
                 throw new DataAccessException("No se pudo eliminar el animal.", ex);
             }
+        }
+
+        /// <summary>
+        /// Cuenta cuántas filas de otra tabla referencian al animal indicado.
+        /// Se usa para validar la integridad referencial antes de eliminar.
+        /// Los nombres de tabla y columna son constantes internas (no entran datos
+        /// del usuario), por lo que no hay riesgo de inyección SQL.
+        /// </summary>
+        private static int ContarReferencias(SqliteConnection conexion, string tabla, string columna, int id)
+        {
+            using SqliteCommand comando = conexion.CreateCommand();
+            comando.CommandText = $"SELECT COUNT(*) FROM {tabla} WHERE {columna} = $id;";
+            comando.Parameters.AddWithValue("$id", id);
+            return Convert.ToInt32(comando.ExecuteScalar());
         }
 
         /// <summary>

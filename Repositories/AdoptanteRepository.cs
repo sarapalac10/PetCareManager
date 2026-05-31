@@ -117,6 +117,16 @@ namespace PetCareInterface.Repositories
             try
             {
                 using SqliteConnection conexion = _connectionFactory.CreateConnection();
+
+                // Integridad referencial: no se puede borrar un adoptante que tenga
+                // adopciones asociadas (quedarían huérfanas).
+                int adopciones = ContarAdopciones(conexion, id);
+                if (adopciones > 0)
+                    throw new DataAccessException(
+                        $"No se puede eliminar el adoptante: tiene {adopciones} adopción(es) asociada(s). " +
+                        "Elimina primero esas adopciones.",
+                        new System.InvalidOperationException());
+
                 using SqliteCommand comando = conexion.CreateCommand();
                 comando.CommandText = "DELETE FROM Adoptantes WHERE Id = $id;";
                 comando.Parameters.AddWithValue("$id", id);
@@ -131,6 +141,18 @@ namespace PetCareInterface.Repositories
             {
                 throw new DataAccessException("No se pudo eliminar el adoptante.", ex);
             }
+        }
+
+        /// <summary>
+        /// Cuenta cuántas adopciones referencian al adoptante indicado.
+        /// Se usa para validar la integridad referencial antes de eliminar.
+        /// </summary>
+        private static int ContarAdopciones(SqliteConnection conexion, int adoptanteId)
+        {
+            using SqliteCommand comando = conexion.CreateCommand();
+            comando.CommandText = "SELECT COUNT(*) FROM Adopciones WHERE AdoptanteId = $id;";
+            comando.Parameters.AddWithValue("$id", adoptanteId);
+            return System.Convert.ToInt32(comando.ExecuteScalar());
         }
 
         /// <summary>
